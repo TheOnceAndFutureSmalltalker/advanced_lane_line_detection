@@ -1,0 +1,2 @@
+# advanced_lane_line_detection
+Code and writeup for detecting lane lines in a sample video taken form a camera mounted on a car.  Uses several image processing techniques such as camera calibration and undistortion, edge detection using various color and Sobel transforms, perspective warping, lane location through sliding window search, and polynomial fitting.  Also, rules are developed to detect poorly fit images and work arounds are developed for these cases. 
