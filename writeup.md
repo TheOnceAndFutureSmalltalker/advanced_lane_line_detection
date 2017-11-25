@@ -76,7 +76,7 @@ The code for the `GradientTransformer` class is found in lanelines.py file, line
 
 There are 3 methods - one for absolute gradient, `abs_thresh()`, one for magnitude of gradient `mag_thresh()`, and one for gradient direction, `dir_thresh()`.  Each method takes an imput image and an upper and lower threshold value.  `abs_thresh()` also takes an orientation parameter of 'x' or 'y'.  Each method converst input image to grayscale, then uses the openCV `Sobel()` function to calculate the gradients for the image.  The `abs_thresh()` method converts all results to absolute value since we don't care about the direction of the gradient, just the value of the change in either the x or y direction.  The `mag_thresh()` method calculates the magnitude of the x and y components of the gradient vector.  The `dir_thresh()` calculates the direction of the gradient from the x and y components.  All three methods return a binary versoin of the output image. 
 
-Below are some examples of these three gradient transforms on test road images.
+Below are some examples of these three gradient transforms on test road images.  In order to make these images viewable, I had to transform them from binary to black white images where the 1 pixels in binary became (255,255,255) pixels for viewing the images.
 <br />
 <p align="center">
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test1_gf_absx_20_100.jpg" width="320px" /><br /><b>Absolute gradient X with threshold (20, 100)</b></p>
@@ -93,17 +93,13 @@ Below are some examples of these three gradient transforms on test road images.
 
 It can be seen from this image that the absolute gradient in X directoin is a good candidate for identifying lane lines. 
 
-
-
-
-
 ### Color Transformation
 
 The code for the `ColorTransformer` class is found in lanelines.py file, lines 133-169.  This component is initialized with the color channel of the target images - RGB or BGR. 
 
 There are three working methods - one for inspecting gray scale, `gray_thresh()`, one for inspecting red component of RGB image, `r_thresh()`, and one for sinpecting saturation component of HSL image, `s_thresh()`.  Each method takes a target image and an upper and lower threshold for the particular component of interest.  If the component of interest, red color for example, is within the given threshold, then that pixel gets a 1,  If not, the pixel gets a value 0.  The result is a bainry image showing where that component of interest meets the threshold range.
 
-Below are examples of thes transformations performed on a test image of the road taken form the car.
+Below are examples of thes transformations performed on a test image of the road taken form the car.  As above, in order to make these images viewable, I had to transform them from binary to black white images where the 1 pixels in binary became (255,255,255) pixels for viewing the images.
 <br />
 
 <p align="center">
@@ -117,6 +113,42 @@ Below are examples of thes transformations performed on a test image of the road
 <br />
 
 From these examples, it looks like the S transformed image will be useful in identifying lane lines.
+
+
+### Perspective Warping
+
+In order to identify lanes in a picture, I needed a view of the road from on top so that the lane lines look like two parallel lines.  unfortunately, the road camera is looking down the road with the lane lines coming together on the horizon.  To solve this, i needed to warp the image to the bird's eye view perspective.  For this step, I created the `PerspectiveWarper` class.  This code is found in lanelines.py file, lines 51-84.  
+
+This component has `warp()` method with takes a target image taken from viewpoint of the car looking down the road, and warps it to a destination image from the viewpoint of looking down on the road from up above.  The `unwarp()` method performs the complimentary operation.  
+
+In order to do this, I had to get a straight line road image that had already been distorted by the camera.  
+
+
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/pt_straight_lines_undistorted.jpg" width="320px" /><br /><b>Straight line road image undistorted</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/pt_straight_lines_distorted.jpg" width="320px" /><br /><b>Straight line road image distorted</b></p>
+<br />
+
+I then captured points at bottom of lane and top of lane.  These became my source points for the transform.  This shape is basically a trapezoid.  I then determined the destination points for the warped image which is basically a rectangle running the full height of the image and having same width as bottom of trapezoid in source.  The PerspectiveWarper is initialized with these two sets of points.
+
+There are two methods - `warp()` for warping an initial image to an overhead perspective, and `unwarp()` for warping an overhead image back to road perspective.  Both methods take an input image and return the warped/unwarped image with the initial image unchanged.  Both methods use the openCV function `getPerpectiveTranform()` to calculate the transform or the reverse transform.  These transforms are then saved as instance variables so they do not have to be recalculated for subsequent images.  
+
+Below is the image above sufficiently warped to an overhead perspective.  The pipeline image processing will not warp the image until it has been transformed to a binary state, but I am using a full road image here for better visual effect.  It is also how I tested to make sure it was working correctly.  In warping a binary image it is not quite so easy to follow what is actually going on in the warped image.
+
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/pt_straight_lines_warped.jpg" width="320px" /><br /><b>warped road image</b></p>
+<br />
+
+Below is the same image transformed back.  Notice that in the process we lost all of the original image outside of the initial trapezoid.  That's OK since we are only interested in the lane at this point and creating a mask of this section of the unwarped image to overlay on the original image (see Pipeline section bwlow.)
+
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/pt_straight_lines_unwarped.jpg" width="320px" /><br /><b>Unwarped road image</b></p>
+<br />
 
 
 ### Pipeline (single images)
