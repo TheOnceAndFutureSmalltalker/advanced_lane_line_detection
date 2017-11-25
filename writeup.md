@@ -189,77 +189,82 @@ Here are other examples of images in and found lane lines.
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test5_ppl_lanes.jpg" width="320px" /><br /><b>Output image from test5.jpg</b></p>
 <br />
 
-### Pipeline (single images)
+### Integration and System Testing
 
-#### 1. Provide an example of a distortion-corrected image.
+As mentioned earlier, after component development, I did integration and system testing.  These are fond in files integ_tests.py and sys_test.py respectively.  I started the tuning process here for each of the components.  The system test was itself a rough pipeline where I took a single image all the way through the process.  Many of the images seen so far were actually constructed at this stage.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
+### Pipeline
 
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
+At this point I started developing the `Pipeline` class, found in lanelines.py, lines 335-491.  Instances of the previously mentioned components are injected into an instance of this class through the constructor.  The file pipeline_runner.py actually creates an instance of the pipeline and all of its components and reads and writes the video files.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+The main method in `Pipeline` is `proces_image()` which takes a single raw video frame or image, runs it through all of the processing, and returns a copy of the image with the road lane clearly marked with a green mask.  It also writes the lane radii and the lane width min and max at the top of the image.  This labeling proved to be very useful in trouble shooting specific images and developing rules for determining "bad" images.  There are several helper methods in Pipeline as well.
 
-![alt text][image3]
+Initially, I started with test images just to get the mechanics of the code correct.  I started with all of the tuning parameters set from the integration and system tests.  Then I captured 2 seconds worth of images from the project video and processed each of those as separate images.  Next I tried 10 seconds of actual video production to see how the initial settings were working.  I constantly went badk and forth from producing video snippits to processing individual images take from various points on the video.   
 
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+I tried several techniques for improving my solution.  I created a test for bad images and varied this test as I went and found new cases.  I started keeping a history of the most recent n images and averaging over the history to smooth out the presentation.  The Udacity lesson mentioned combining the gradient X trasnform with the S transform since each of these techniques picks up on the lane lines under different circumstances.  I used this as well.  
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+I tweaked several prameters to get better results.  Primarily I tweaked the source and destination points in the warping process and I tweaked the window search parameters in the lane finding component.  I did very little tweaking on the thresholds for gradient X and S transforms as the original ones worked very well from the start.  I did not try using any other gradient or color transforms as they did not look like they would provide any benefit based on the test images I produced.  
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
-```
+In the warping process, I felt I was going too deep - too far down the road.  The problem is, 5 pixels of depth at bottom of the image might be a half meter or so, but 5 pixels at the top might be 5 meters or more!.  So the source region is very sensitive at the top and the lane lines tend to disappear in the distance.  Shortening the region of interest made a difference.  I inspected several actual video images to tweak these points.  My final warping settings are as follows:
 
-This resulted in the following source and destination points:
+| Target | Points |
+| Source | [178,720], [573,462], [709,462], [1135,720] |
+| Destination | [337,720], [337,0], [970,0], [970,720] |
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+My initial test for a "bad" image was just to use a ration of min to max lane width and compare that with some threshold such as 0.85.  The idea here being that the lane width should not vary much and if it did, it would indicate a bad fit.  This didn't seem to work all too well as obviously bad images were still getting through.  I then started inspecting individual images and various trouble spots and developing specfic rules to handle these cases.  My final rules for bad images were:
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+1. any image whose min lane width < 500
 
-![alt text][image4]
+2. any image whose min lane width < 550 AND ration of min radius to max radius is < 0.4
 
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+3. if x bad fits in a row, reset lanelineFinder component to do a complete window search with next image
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+The smoothing process by averaging over the last n images does smooth things out but introduces its own issues.  There were a few points in the video where the lane managed to change quite a bit form one frame to the next and the smoothing process cannot react to this in a timely fashion
 
-![alt text][image5]
+At this point, I still seemed to be getting some bad behavior at the top of the image.  Also, there was a special case where the car hits a bump and the camera's angle changes causing the lane lines to go wide or narrow.  These were the hardest cases to crack and I never did fully fix them as you can see in the resulting video.  Every time the car hits a bump, the green mask jumps a bit, but settles down again after a few frames.  Such a jostling of the car always happens when the car transitions from one type of pavement to the other and this affect is quite noticeable at these points in the video.
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+So, my final solution was as follows:
 
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+| Step | Description |
+| Undistort | Undistort the original image using `CameraCalibrato`r component |
+| Gradient X | Transform a copy of the image to a binary gradient X transform using `GradientTransformer` with thresholds (20, 100) |
+| Saturation | Transform a copy of the image to binary based on Saturation level using `ColorTransformer` with thresholds (150, 255) |
+| Combine | Combine the X and S transforms into one using an AND operator to yield a binary image with max lane line definition |
+| Warp | Use the PerspectiveWarper component and points source and destination points defined above to get a warped image |
+| Lane Line | Run this image through the LaneLineFinder component with settings of nwindows=10, margin=40, minpix=25 |
+| Check Fit | Apply rules above, if bad image keep last good fit, if good image use new fit. Update bad image counter. |
+| History | Update history with current good fit (which may be previous fit if latest fit is bad.) |
+| Create Mask | Apply lane mask to warped image using average of most recent n fits kept in history. |
+| Unwarp | Unwarp the mask back to car perspective. |
+| Combine Mask/image | Add mask to copy of orginal undistorted image thereby clearly marking the lanes. |
+| Add Labels | Label the image with radii and lane widths. | 
+| Return | Return completed image, original is untouched, and may optionally save a copy to file. |
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
 
-![alt text][image6]
+Note:  The labeling applied in last step was that of the most recent good fit and not of the average fit that is actually applied to the image!  Some of the Pipeline parameters are hard coded and not set up as instance variables.  Especially the rules that are applied for image fit.  
 
----
+Here is an example of original and completed image.
 
-### Pipeline (video)
+<p align="center">
+<img src="" width="320px" /><br /><b>Test image taken with camera</b></p>
+<br />
+<p align="center">
+<img src="" width="320px" /><br /><b>Test image taken with camera</b></p>
+<br />
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
-
-Here's a [link to my video result](./project_video.mp4)
-
----
+The completed video is the file is project_video_lanes.mp4 and is located <a href="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/project_video_lanes.mp4">here</a>. 
 
 ### Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+The main problem I had that I was never able to completely solve was the case of the car hitting a bump or transitionly from one pavement to the other causing a pitching up and down of car resulting in the lane lines in the video suddenly widening and narrowing and I would temporarily loose a good fit.  This is noticeable in the video. Perhaps a higher fraem rate would help here as the changes from frame to frame would be less substantial.
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+I would also like to improve on the test for bad image and how that case is handled.  The test can only be improved by seeing more examples and applying more logic.  I would like to try handling the case by rerunning the lane line finder using a full window search to see if that fixes it, and if not, only then use the previous good fit.
+
+The averaging function could be improved by providing weights so that the most recent good fit has the most influence on the average.
+
+Finally, I would like to improve the code.  I like the way it is factored and tested but there is still much work to be done.  Too many tunable parameters are hard coded.  I would like to have a large config object that is set up and passed in to the `Pipeline` object.  Also, the saving of intermediate images could be handled better.  In too many cases it is just hard coded.
+
+Finally, I would like to try the challenge videos.  I have not done that yet, but will and continue tuning my solution.
+
+Also, while the code is factored quite a bit and 
