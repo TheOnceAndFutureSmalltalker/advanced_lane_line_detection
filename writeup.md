@@ -51,7 +51,7 @@ Finally, pipeline_runner.py was used to actually process the video images and cr
 
 The code for the `CameraCalibration` class is found in lanelines.py file, lines 8-47.  
 
-I used various test chessboard images captured with the car's camera for calibrating the camera.  All of the cheesboard images were 9 vertices across by 6 down.  In the `calibrate()` method you can see that I used openCV library to read each test image, convert it to gray scale, and find the coordinates of the vertices.  I also used numpy `mgird()` method to compute the undistorted coordinates of these vertices.  For each image I appended the image vertices and calculated vertices to respective collectoins.  I then used openCV `calibrateCamera()` on these to collections to calibrate.  This method returns the matrix and distortion coefficients necessary to undistort any image taken with the camera and they are stored as instance variables.  I then wrote the undistort() method to use these values and the openCV `undistort()` method to undistort any input image and return the undistorted version.
+I used various test chessboard images captured with the car's camera for calibrating the camera.  All of the cheesboard images were 9 vertices across by 6 down.  In the `calibrate()` method you can see that I used openCV library to read each test image, convert it to gray scale, and find the coordinates of the vertices.  I also used numpy `mgrid()` method to compute the undistorted coordinates of these vertices.  For each image I appended the image vertices and calculated vertices to respective collectoins.  I then used openCV `calibrateCamera()` on these to collections to calibrate.  This method returns the matrix and distortion coefficients necessary to undistort any image taken with the camera and they are stored as instance variables.  I then wrote the `undistort()` method to use these values and the openCV `undistort()` method to undistort any input image and return the undistorted version.
 
 Below are an example of a original chessboard image and its undistorted version.
 <br /><br />
@@ -228,6 +228,7 @@ At this point, I still seemed to be getting some bad behavior at the top of the 
 So, my final solution was as follows:
 
 | Step | Description |
+|-----|-----|
 | Undistort | Undistort the original image using `CameraCalibrato`r component |
 | Gradient X | Transform a copy of the image to a binary gradient X transform using `GradientTransformer` with thresholds (20, 100) |
 | Saturation | Transform a copy of the image to binary based on Saturation level using `ColorTransformer` with thresholds (150, 255) |
