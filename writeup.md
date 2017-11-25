@@ -1,10 +1,7 @@
-## Writeup Template
 
-### You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
 
+# Advanced Lane Finding Project
 ---
-
-**Advanced Lane Finding Project**
 
 The goals / steps of this project are the following:
 
@@ -17,29 +14,62 @@ The goals / steps of this project are the following:
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
-[//]: # (Image References)
-
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
-
-## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
-
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
-
 ---
 
-### Writeup / README
+### General Approach
 
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
+Because of the length and complexity of the programming task, I decided to write components/classes for each of the steps above and one large integration component for the pipeline itself.  I also decided to use a TDD approach to my development for each of these components, followed by integration and system tests, developing and enhancing the code as I tested.  The components/classes are listed below:
+<br />
 
-You're reading it!
+Class/Component | Description 
+------|------
+`CameraCalibrator` | Calibrates a camera based on a series of test imaes.  Can then remove distortions of an image taken by that cameral
+`GradientTransformer` | Performs various transforms, using Sobel transform, of an image into gradient space.
+`ColorTransformer` | performs various transforms of an image into various color spaces  gray, red, saturation, etc.
+`PerspectiveWarper` | Warps an image based on a change in perspective from a car's view to a bird's eye view of the road.  Can also transform back.
+`LaneLineFinder` | Identifies right and left lane lines of a binary warped image, returns pixel coords for those lines, maintains stats for those lines like polynomial coefficients, curvature radius, max/min lane widths.  Optionally creates an image of the lane lines for intermediate analysis.
+`Pipeline` | Fully processes an image by identifying lane lines and marking the lane in green.  Information is also placed at top of image. Processed image is returned, original image is untouched.
+<br />
+
+All of these implementations are found in the file lanelines.py so it can be imported as a single library.  In addition, each of the components (except for Pipeline) has its own unit test file:
+<br />
+
+Class/Component | Unit Test File 
+------|------
+`CameraCalibrator` | unit_test_cam_cal.py
+`GradientTransformer` | unit_test_grad_trans.py
+`ColorTransformer` | unit_test_colr_trans.py
+`PerspectiveWarper` | unit_test_persp_warp.py
+`LaneLineFinder` | unit_test_find_lns.py
+<br />
+
+There is also an integ_test.py for integration tests among the components and sys_test.py for system testing, which is itself, a rough pipeline.  It is with these two test files that I started to tune parameters and save test images in various stages of completion.  
+
+Finally, pipeline_runner.py was used to actually process the video images and create the finished products.  It was also used for creating sets of test images from the video itself, usually 2-5 seconds worth, for testing, inspection, and fine tuning of those particular images.
 
 ### Camera Calibration
+
+The code for the `CameraCalibration` class is found in lanelines.py, lines 8-47.  
+
+I used various test chessboard images captured with the car's camera for calibrating the camera.  All of the cheesboard images were 9 vertices across by 6 down.  In the `calibrate()` method you can see that I used openCV library to read each test image, convert it to gray scale, and find the coordinates of the vertices.  I also used numpy mgird() method to compute the undistorted coordinates of these vertices.  For each image I appended the image vertices and calculated vertices to respective collectoins.  I then used openCV.calibrateCamera() on these to collections to calibrate.  This method returns the matrix and distortion coefficients necessary to undistort any image taken with the camera and they are stored as instance variables.  I then wrote the undistort() method to use these values and the openCV.undistort() method to undistort any input image and return the undistorted version.
+
+Below are an example of a original chessboard image and its undistorted version.
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_initial_checkerboard_image.jpg" width="320px" /><br /><b>Test image taken with camera</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_undistorted_checkerboard_image.jpg" width="320px" /><br /><b>Undistorted test image</b></p>
+<br />
+And next are a road image taken with the camera, and its undistorted version.
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_initial_road_image.jpg" width="320px" /><br /><b>Road image taken with camera</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_undistorted_road_image.jpg" width="320px" /><br /><b>Undistorted road image</b></p>
+<br />
+
 
 #### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
