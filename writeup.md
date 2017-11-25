@@ -191,27 +191,28 @@ Here are other examples of images in and found lane lines.
 
 ### Integration and System Testing
 
-As mentioned earlier, after component development, I did integration and system testing.  These are fond in files integ_tests.py and sys_test.py respectively.  I started the tuning process here for each of the components.  The system test was itself a rough pipeline where I took a single image all the way through the process.  Many of the images seen so far were actually constructed at this stage.
+As mentioned earlier, after component development, I did integration and system testing.  These are found in files integ_tests.py and sys_test.py respectively.  I started the tuning process here for each of the components.  The system test was itself a rough pipeline where I took a single image all the way through the process.  Many of the images seen so far were actually constructed at this stage.
 
 ### Pipeline
 
-At this point I started developing the `Pipeline` class, found in lanelines.py, lines 335-491.  Instances of the previously mentioned components are injected into an instance of this class through the constructor.  The file pipeline_runner.py actually creates an instance of the pipeline and all of its components and reads and writes the video files.
+At this point I started developing the `Pipeline` class, found in lanelines.py, lines 335-491.  Instances of the previously mentioned components are injected into an instance of this class through the constructor.  The file pipeline_runner.py actually creates an instance of `Pipeline` and all of its components and reads and writes the video files.
 
-The main method in `Pipeline` is `proces_image()` which takes a single raw video frame or image, runs it through all of the processing, and returns a copy of the image with the road lane clearly marked with a green mask.  It also writes the lane radii and the lane width min and max at the top of the image.  This labeling proved to be very useful in trouble shooting specific images and developing rules for determining "bad" images.  There are several helper methods in Pipeline as well.
+The main method in `Pipeline` is `process_image()` which takes a single raw video frame or image, runs it through all of the processing, and returns a copy of the image with the road lane clearly marked with a green mask.  It also writes the lane radii and the lane width min and max at the top of the image.  This labeling proved to be very useful in trouble shooting specific images and developing rules for determining "bad" images.  There are several helper methods in `Pipeline` as well.
 
-Initially, I started with test images just to get the mechanics of the code correct.  I started with all of the tuning parameters set from the integration and system tests.  Then I captured 2 seconds worth of images from the project video and processed each of those as separate images.  Next I tried 10 seconds of actual video production to see how the initial settings were working.  I constantly went badk and forth from producing video snippits to processing individual images take from various points on the video.   
+Initially, I started with test images just to get the mechanics of the code correct.  I started with all of the tuning parameters set from the integration and system tests.  Then I captured 2 seconds worth of images from the project video and processed each of those as separate images.  Next I tried 10 seconds of actual video production to see how the initial settings were working.  I constantly went back and forth from producing video snippits to processing individual images take from various points on the video.   
 
-I tried several techniques for improving my solution.  I created a test for bad images and varied this test as I went and found new cases.  I started keeping a history of the most recent n images and averaging over the history to smooth out the presentation.  The Udacity lesson mentioned combining the gradient X trasnform with the S transform since each of these techniques picks up on the lane lines under different circumstances.  I used this as well.  
+I tried several techniques for improving my solution.  I created a test for "bad" images and varied this test as I went and found new cases.  I started keeping a history of the most recent n images and averaging over the history to smooth out the presentation.  The Udacity lesson mentioned combining the gradient X transform with the S transform since each of these techniques picks up on the lane lines under different circumstances.  I used this as well.  
 
 I tweaked several prameters to get better results.  Primarily I tweaked the source and destination points in the warping process and I tweaked the window search parameters in the lane finding component.  I did very little tweaking on the thresholds for gradient X and S transforms as the original ones worked very well from the start.  I did not try using any other gradient or color transforms as they did not look like they would provide any benefit based on the test images I produced.  
 
 In the warping process, I felt I was going too deep - too far down the road.  The problem is, 5 pixels of depth at bottom of the image might be a half meter or so, but 5 pixels at the top might be 5 meters or more!.  So the source region is very sensitive at the top and the lane lines tend to disappear in the distance.  Shortening the region of interest made a difference.  I inspected several actual video images to tweak these points.  My final warping settings are as follows:
 
 | Target | Points |
+|-----|-----|
 | Source | [178,720], [573,462], [709,462], [1135,720] |
 | Destination | [337,720], [337,0], [970,0], [970,720] |
 
-My initial test for a "bad" image was just to use a ration of min to max lane width and compare that with some threshold such as 0.85.  The idea here being that the lane width should not vary much and if it did, it would indicate a bad fit.  This didn't seem to work all too well as obviously bad images were still getting through.  I then started inspecting individual images and various trouble spots and developing specfic rules to handle these cases.  My final rules for bad images were:
+My initial test for a "bad" image was just to use a ratio of min to max lane width and compare that with some threshold such as 0.85.  The idea here being that the lane width should not vary much and if it did, it would indicate a bad fit.  This didn't seem to work all too well as obviously bad images were still getting through.  I then started inspecting individual images and various trouble spots and developing specfic rules to handle these cases.  My final rules for bad images were:
 
 1. any image whose min lane width < 500
 
@@ -247,24 +248,25 @@ Note:  The labeling applied in last step was that of the most recent good fit an
 Here is an example of original and completed image.
 
 <p align="center">
-<img src="" width="320px" /><br /><b>Test image taken with camera</b></p>
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/frame_10_original.jpg" width="320px" /><br /><b>Original frame 10 from video</b></p>
 <br />
 <p align="center">
-<img src="" width="320px" /><br /><b>Test image taken with camera</b></p>
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/frame_10_final.jpg" width="320px" /><br /><b>Output frame 10</b></p>
 <br />
+
+Note:  The slight difference in the two frames above (other than the green mask, of course) is due to the fact that the original is  still distorted but the final is undistorted!
 
 The completed video is the file is project_video_lanes.mp4 and is located <a href="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/project_video_lanes.mp4">here</a>. 
 
 ### Discussion
 
-The main problem I had that I was never able to completely solve was the case of the car hitting a bump or transitionly from one pavement to the other causing a pitching up and down of car resulting in the lane lines in the video suddenly widening and narrowing and I would temporarily loose a good fit.  This is noticeable in the video. Perhaps a higher fraem rate would help here as the changes from frame to frame would be less substantial.
+The main problem I had that I was never able to completely solve was the case of the car hitting a bump or transitioning from one pavement to the other causing a pitching up and down of car resulting in the lane lines in the video suddenly widening and narrowing and I would temporarily loose a good fit.  This is noticeable in the video. Perhaps a higher frame rate would help here as the changes from frame to frame would be less substantial.
 
 I would also like to improve on the test for bad image and how that case is handled.  The test can only be improved by seeing more examples and applying more logic.  I would like to try handling the case by rerunning the lane line finder using a full window search to see if that fixes it, and if not, only then use the previous good fit.
 
 The averaging function could be improved by providing weights so that the most recent good fit has the most influence on the average.
 
-Finally, I would like to improve the code.  I like the way it is factored and tested but there is still much work to be done.  Too many tunable parameters are hard coded.  I would like to have a large config object that is set up and passed in to the `Pipeline` object.  Also, the saving of intermediate images could be handled better.  In too many cases it is just hard coded.
+I would like to improve the code implementation.  I like the way it is factored and tested but there is still much work to be done.  Too many tunable parameters are hard coded.  I would like to have a large config object that is set up and passed in to the `Pipeline` object.  Also, the saving of intermediate images could be handled better.  In too many cases it is just hard coded.
 
 Finally, I would like to try the challenge videos.  I have not done that yet, but will and continue tuning my solution.
 
-Also, while the code is factored quite a bit and 
