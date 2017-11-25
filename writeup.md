@@ -49,12 +49,12 @@ Finally, pipeline_runner.py was used to actually process the video images and cr
 
 ### Camera Calibration
 
-The code for the `CameraCalibration` class is found in lanelines.py, lines 8-47.  
+The code for the `CameraCalibration` class is found in lanelines.py file, lines 8-47.  
 
-I used various test chessboard images captured with the car's camera for calibrating the camera.  All of the cheesboard images were 9 vertices across by 6 down.  In the `calibrate()` method you can see that I used openCV library to read each test image, convert it to gray scale, and find the coordinates of the vertices.  I also used numpy mgird() method to compute the undistorted coordinates of these vertices.  For each image I appended the image vertices and calculated vertices to respective collectoins.  I then used openCV.calibrateCamera() on these to collections to calibrate.  This method returns the matrix and distortion coefficients necessary to undistort any image taken with the camera and they are stored as instance variables.  I then wrote the undistort() method to use these values and the openCV.undistort() method to undistort any input image and return the undistorted version.
+I used various test chessboard images captured with the car's camera for calibrating the camera.  All of the cheesboard images were 9 vertices across by 6 down.  In the `calibrate()` method you can see that I used openCV library to read each test image, convert it to gray scale, and find the coordinates of the vertices.  I also used numpy `mgird()` method to compute the undistorted coordinates of these vertices.  For each image I appended the image vertices and calculated vertices to respective collectoins.  I then used openCV `calibrateCamera()` on these to collections to calibrate.  This method returns the matrix and distortion coefficients necessary to undistort any image taken with the camera and they are stored as instance variables.  I then wrote the undistort() method to use these values and the openCV `undistort()` method to undistort any input image and return the undistorted version.
 
 Below are an example of a original chessboard image and its undistorted version.
-<br />
+<br /><br />
 <p align="center">
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_initial_checkerboard_image.jpg" width="320px" /><br /><b>Test image taken with camera</b></p>
 <br />
@@ -62,7 +62,7 @@ Below are an example of a original chessboard image and its undistorted version.
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_undistorted_checkerboard_image.jpg" width="320px" /><br /><b>Undistorted test image</b></p>
 <br />
 And next are a road image taken with the camera, and its undistorted version.
-<br />
+<br /><br />
 <p align="center">
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_initial_road_image.jpg" width="320px" /><br /><b>Road image taken with camera</b></p>
 <br />
@@ -70,16 +70,54 @@ And next are a road image taken with the camera, and its undistorted version.
 <img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/cc_undistorted_road_image.jpg" width="320px" /><br /><b>Undistorted road image</b></p>
 <br />
 
+### Gradient Transformation
 
-#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+The code for the `GradientTransformer` class is found in lanelines.py file, lines 88-129.  This component uses a Sobel transform to compute gradients for pixels in the image.  The component is initialized with kernel size and color to gray conversion type (RGB2GRAY for example).
 
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
+There are 3 methods - one for absolute gradient, `abs_thresh()`, one for magnitude of gradient `mag_thresh()`, and one for gradient direction, `dir_thresh()`.  Each method takes an imput image and an upper and lower threshold value.  `abs_thresh()` also takes an orientation parameter of 'x' or 'y'.  Each method converst input image to grayscale, then uses the openCV `Sobel()` function to calculate the gradients for the image.  The `abs_thresh()` method converts all results to absolute value since we don't care about the direction of the gradient, just the value of the change in either the x or y direction.  The `mag_thresh()` method calculates the magnitude of the x and y components of the gradient vector.  The `dir_thresh()` calculates the direction of the gradient from the x and y components.  All three methods return a binary versoin of the output image. 
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
+Below are some examples of these three gradient transforms on test road images.
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test1_gf_absx_20_100.jpg" width="320px" /><br /><b>Absolute gradient X with threshold (20, 100)</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test1_gf_absy_20_100.jpg" width="320px" /><br /><b>Absolute gradient Y with threshold (20, 100)</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test1_gf_mag_30_100.jpg" width="320px" /><br /><b>Maginitude gradient with threshold (30, 100)</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test1_gf_dir_0p7_1p3.jpg" width="320px" /><br /><b>directional gradient with threshold (in rads) (0.7, 1.3)</b></p>
+<br />
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+It can be seen from this image that the absolute gradient in X directoin is a good candidate for identifying lane lines. 
 
-![alt text][image1]
+
+
+
+
+### Color Transformation
+
+The code for the `ColorTransformer` class is found in lanelines.py file, lines 133-169.  This component is initialized with the color channel of the target images - RGB or BGR. 
+
+There are three working methods - one for inspecting gray scale, `gray_thresh()`, one for inspecting red component of RGB image, `r_thresh()`, and one for sinpecting saturation component of HSL image, `s_thresh()`.  Each method takes a target image and an upper and lower threshold for the particular component of interest.  If the component of interest, red color for example, is within the given threshold, then that pixel gets a 1,  If not, the pixel gets a value 0.  The result is a bainry image showing where that component of interest meets the threshold range.
+
+Below are examples of thes transformations performed on a test image of the road taken form the car.
+<br />
+
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test2_cf_gray_180_255.jpg" width="320px" /><br /><b>Gray transformation threshold (180, 255)</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test2_cf_r_200_255.jpg" width="320px" /><br /><b>R transformation threshold (200, 255)</b></p>
+<br />
+<p align="center">
+<img src="https://github.com/TheOnceAndFutureSmalltalker/advanced_lane_line_detection/blob/master/output_images/test2_cf_s_160_255.jpg" width="320px" /><br /><b>S transformation threshold (160, 255)</b></p>
+<br />
+
+From these examples, it looks like the S transformed image will be useful in identifying lane lines.
+
 
 ### Pipeline (single images)
 
