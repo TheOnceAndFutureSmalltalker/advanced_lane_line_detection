@@ -192,7 +192,7 @@ class LaneLineFinder:
         self.dist_max = None  # max distance between lane lines
         self.dist_min = None  # min distance between lane lines
         self.last_img = None  # last image processed
-        
+        self.center_offset = None # meters car is from center of lane
         
 
     def reset(self):
@@ -297,6 +297,13 @@ class LaneLineFinder:
 
         self.dist_min = np.min(right_fitx - left_fitx)
         self.dist_max = np.max(right_fitx - left_fitx)
+        
+        # calculate offset of camera from center of lane in meters
+        # left of center is negative, right of center is positive
+        lane_center_pixels = ( left_fitx[img.shape[0]-1] + right_fitx[img.shape[0]-1] ) / 2.0
+        image_center_pixels = img.shape[1] / 2
+        offset_pixels = image_center_pixels - lane_center_pixels
+        self.center_offset =  offset_pixels * 3.7 / 700.0
 
         # for output image, draw left and right lane lines in red and greed resp.
         # draw polynomial fit of lanes in yellow 
@@ -360,6 +367,7 @@ class Pipeline():
         self.right_fit = None
         self.left_fitx = None
         self.right_fitx = None
+        self.center_offset = None
         # next three vars for history of last n good fits
         self.ploty_hist = None
         self.left_fitx_hist = None
@@ -392,7 +400,7 @@ class Pipeline():
         unwarped_lane_mask = self.pw.unwarp(warped_lane_mask)
         final = cv2.addWeighted(undistorted, 1, unwarped_lane_mask, 0.3, 0)
         self.label_image(final)
-#        scipy.misc.imsave('frames_out/test{0}.jpg'.format(self.i), final) 
+        scipy.misc.imsave('frames_out/test{0}.jpg'.format(self.i), final) 
 #        scipy.misc.imsave('pipeline_test/test{0}_out.jpg'.format(self.i), final) 
         return final
   
@@ -406,7 +414,7 @@ class Pipeline():
         
 #        if self.llf.dist_min / self.llf.dist_max < self.min_lane_width_ratio:
         if (self.llf.dist_min < 500.0) or ((self.llf.dist_min < 550.0) and (radii_ratio < 0.4)):
-            print('{0} bad {1:8.2f} {2:8.2f}'.format(self.i, self.llf.dist_min, radii_ratio))
+#            print('{0} bad {1:8.2f} {2:8.2f}'.format(self.i, self.llf.dist_min, radii_ratio))
             self.bad_frames += 1
             self.total_bad += 1
             # load previous fit values back into llf 
@@ -419,8 +427,9 @@ class Pipeline():
             self.llf.dist_min = self.dist_min
             self.llf.left_rad = self.left_rad
             self.llf.right_rad = self.right_rad
+            self.llf.center_offset = self.center_offset
         else:
-            print('{0} good'.format(self.i))
+#            print('{0} good'.format(self.i))
             self.bad_frames = 0
             # capture current llf values as next good fit
             self.ploty = self.llf.ploty
@@ -432,6 +441,7 @@ class Pipeline():
             self.dist_min = self.llf.dist_min
             self.left_rad = self.llf.left_rad
             self.right_rad = self.llf.right_rad
+            self.center_offset = self.llf.center_offset
             
         # if too many bad frames in a row, have llf do new window search    
         if self.bad_frames == self.max_bad_frames:
@@ -473,15 +483,17 @@ class Pipeline():
     
     
     def label_image(self, final):
-        """Write radii and min/max lane widths at top of image.
+        """Write radii, min/max lane widths, and center offset at top of image.
            Note: these are of most recent good fit and not of the average
            fit that is actually written to screen!
         """
         font = cv2.FONT_HERSHEY_SIMPLEX
+        text = 'center offset: {0:8.2f}'.format(self.llf.center_offset)
+        cv2.putText(final, text, (50, 50), font, 0.7, (200, 200, 200), 2, cv2.LINE_AA)
         text = 'radii: ({0:8.2f}, {1:8.2f})'.format(self.llf.left_rad, self.llf.right_rad)
-        cv2.putText(final, text, (200, 50), font, 0.7, (200, 200, 200), 2, cv2.LINE_AA)
+        cv2.putText(final, text, (350, 50), font, 0.7, (200, 200, 200), 2, cv2.LINE_AA)
         text = 'lane width (min, max): ({0:8.2f}, {1:8.2f})'.format(self.llf.dist_min, self.llf.dist_max)
-        cv2.putText(final, text, (600, 50), font, 0.7, (200, 200, 200), 2, cv2.LINE_AA)
+        cv2.putText(final, text, (730, 50), font, 0.7, (200, 200, 200), 2, cv2.LINE_AA)
 
 
     def save_image(self, original):

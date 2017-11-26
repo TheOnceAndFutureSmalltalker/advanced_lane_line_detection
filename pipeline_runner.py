@@ -1,6 +1,4 @@
 import numpy as np
-import glob
-import scipy.misc
 import lanelines as ll
 
 
@@ -25,7 +23,7 @@ from moviepy.editor import VideoFileClip
 
 def process_video(in_clip_name, out_clip_name):
     """process the video, this must be run command line!"""
-    in_clip = VideoFileClip(in_clip_name) #.subclip(0,26) 
+    in_clip = VideoFileClip(in_clip_name) #.subclip(0,20) 
     out_clip = in_clip.fl_image(pl.process_image)
     out_clip.write_videofile(out_clip_name, audio=False)
     print('total bad {0}'.format(pl.total_bad))
@@ -39,19 +37,20 @@ process_video('project_video.mp4', 'project_video_test.mp4')
 #    out_clip = in_clip.fl_image(pl.save_image)
 #    out_clip.write_videofile(out_clip_name, audio=False)
 #    
-#create_test_frames('project_video.mp4', 'project_video_test.mp4', 20, 26)  
+#create_test_frames('project_video.mp4', 'project_video_test.mp4', 0, 2)  
 
 
-def process_test_frames():
-    """process test frames (about 50 or 2 seconds worth) of project video 
-       that have been previously saved out to a folder.
-    """
-    filenames = glob.glob('pipeline_test/test*.jpg')
-    for filename in filenames:
-        img = scipy.misc.imread(filename)
-        pl.process_image(img)
-    print('total bad {0}'.format(pl.total_bad))
-
+#import glob
+#def process_test_frames():
+#    """process test frames (about 50 or 2 seconds worth) of project video 
+#       that have been previously saved out to a folder.
+#    """
+#    filenames = glob.glob('frames_in/test*.jpg')
+#    for filename in filenames:
+#        img = scipy.misc.imread(filename)
+#        pl.process_image(img)
+#    print('total bad {0}'.format(pl.total_bad))
+#
 #process_test_frames()
 
   

@@ -2,7 +2,6 @@ import numpy as np
 import cv2
 import scipy.misc
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import lanelines as ll
 import unittest
 
@@ -32,6 +31,7 @@ class TestLaneFinder(unittest.TestCase):
         self.assertTrue(llf.right_rad > 500, 'lane radius should be at least 500m')
         print(llf.left_rad)
         print(llf.right_rad)
+        print(llf.center_offset)
         
 
         
